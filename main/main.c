@@ -72,7 +72,7 @@ const int CSPin = 5;
 //const int SDAPin = -1; // i2c
 
 struct SSD1306_Device Dev_SPI;
-struct SSD1306_Device Dev_I2C;
+//struct SSD1306_Device Dev_I2C;
 struct SSD1306_Device Dev_Span;
 
 void ShiftTask( void* Param ) {
@@ -87,10 +87,10 @@ void ShiftTask( void* Param ) {
             FBShiftLeft( &Dev_Span, In, Out );
             memcpy( In, Out, sizeof( Out ) );
 
-            Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
+            //Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
             Virt_DeviceBlit( &Dev_Span, &Dev_SPI, MakeRect( 128, 255, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );   
 
-            SSD1306_Update( &Dev_I2C );
+            //SSD1306_Update( &Dev_I2C );
             SSD1306_Update( &Dev_SPI );
         End = GetMillis( );
 
@@ -107,11 +107,12 @@ void ShiftTask( void* Param ) {
 }
 
 void app_main( void ) {
-    bool Screen0 = false;
+    //bool Screen0 = false;
     bool Screen1 = false;
 
     printf( "Ready...\n" );
 
+    /*
     if ( ESP32_InitI2CMaster( SDAPin, SCLPin ) ) {
         printf( "i2c master initialized.\n" );
 
@@ -125,6 +126,7 @@ void app_main( void ) {
             //SSD1306_Update( &Dev_I2C );
         }
     }
+    */
 
     if ( ESP32_InitSPIMaster( DCPin ) ) {
         printf( "SPI Master Init OK.\n" );
@@ -136,21 +138,22 @@ void app_main( void ) {
             //SSD1306_SetFont( &Dev_SPI, &Font_Comic_Neue_25x28 );
             //FontDrawAnchoredString( &Dev_SPI, "Okay.", TextAnchor_Center, true );
 
-            //SSD1306_Update( &Dev_SPI );                            
+            //SSD1306_Update( &Dev_SPI );
         }
     }
 
-    if ( Screen0 == true && Screen1 == true ) {
+    //if ( Screen0 == true && Screen1 == true ) {
+    if ( Screen1 == true ) {
         if ( Virt_DeviceInit( &Dev_Span, 256, 64 ) == 1 ) {
             printf( "Span created!\n" );
 
             SSD1306_SetFont( &Dev_Span, &Font_Liberation_Sans_15x16 );
             FontDrawAnchoredString( &Dev_Span, "Okay.", TextAnchor_Center, true );
 
-            Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
+            //Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
             Virt_DeviceBlit( &Dev_Span, &Dev_SPI, MakeRect( 128, 255, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
 
-            SSD1306_Update( &Dev_I2C );
+            //SSD1306_Update( &Dev_I2C );
             SSD1306_Update( &Dev_SPI );
 
             xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, NULL );
