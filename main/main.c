@@ -147,6 +147,8 @@ void app_main( void ) {
         if ( Virt_DeviceInit( &Dev_Span, 256, 64 ) == 1 ) {
             printf( "Span created!\n" );
 
+            SSD1306_SetHFlip( &Dev_SPI, true );
+            SSD1306_SetVFlip( &Dev_SPI, true );
             SSD1306_SetFont( &Dev_Span, &Font_Liberation_Sans_15x16 );
             FontDrawAnchoredString( &Dev_Span, "Okay.", TextAnchor_Center, true );
 
