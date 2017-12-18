@@ -150,7 +150,7 @@ void app_main( void ) {
             SSD1306_SetHFlip( &Dev_SPI, true );
             SSD1306_SetVFlip( &Dev_SPI, true );
             SSD1306_SetFont( &Dev_Span, &Font_Liberation_Sans_15x16 );
-            FontDrawAnchoredString( &Dev_Span, "Okay.", TextAnchor_Center, true );
+            FontDrawAnchoredString( &Dev_Span, "Hello ESP32", TextAnchor_Center, true );
 
             //Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
             Virt_DeviceBlit( &Dev_Span, &Dev_SPI, MakeRect( 128, 255, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
