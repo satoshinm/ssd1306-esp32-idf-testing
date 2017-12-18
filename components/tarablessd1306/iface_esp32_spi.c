@@ -22,8 +22,8 @@
 #define TraceHere( ) printf( "%s: line %d\n", __FUNCTION__, __LINE__ )
 #define MHZ( n ) ( n * 1000000 )
 
-static const int MOSIPin = 23;
-static const int SCKPin = 18;
+static const int MOSIPin = 18;
+static const int SCKPin = 23;
 static int DCPin = -1;
 
 int ESP32_WriteCommand_SPI( struct SSD1306_Device* DeviceHandle, SSDCmd SSDCommand ) {

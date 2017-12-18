@@ -65,11 +65,11 @@ void DrawPixelInColumn( uint8_t* Column, int y, bool Color ) {
     Column[ Page ] = ( Color == true ) ? Column[ Page ] | BIT( Pixel ) : Column[ Page ] & ~BIT( Pixel );
 }
 
-const int RSTPin = 5;
-const int DCPin = 16;
-const int CSPin = 4;
-const int SCLPin = 22;
-const int SDAPin = 21;
+const int RSTPin = 17;
+const int DCPin = 19;
+const int CSPin = 5;
+//const int SCLPin = -1; // i2c
+//const int SDAPin = -1; // i2c
 
 struct SSD1306_Device Dev_SPI;
 struct SSD1306_Device Dev_I2C;
