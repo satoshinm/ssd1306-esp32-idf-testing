@@ -53,17 +53,10 @@ static void udp_conn(void *pvParameters)
     /*create udp socket*/
     int socket_ret;
     
-#if EXAMPLE_ESP_UDP_MODE_SERVER
     ESP_LOGI(TAG, "create udp server after 3s...");
     vTaskDelay(3000 / portTICK_RATE_MS);
     ESP_LOGI(TAG, "create_udp_server.");
     socket_ret=create_udp_server();
-#else /*EXAMPLE_ESP_UDP_MODE_SERVER*/
-    ESP_LOGI(TAG, "create udp client after 20s...");
-    vTaskDelay(20000 / portTICK_RATE_MS);
-    ESP_LOGI(TAG, "create_udp_client.");
-    socket_ret = create_udp_client();
-#endif
     if(socket_ret == ESP_FAIL) {
 	ESP_LOGI(TAG, "create udp socket error,stop.");
 	vTaskDelete(NULL);

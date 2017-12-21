@@ -173,40 +173,13 @@ void send_recv_data(void *pvParameters)
     ESP_LOGI(TAG, "task send_recv_data start!\n");
     
     int len;
-    char databuff[EXAMPLE_DEFAULT_PKTSIZE];
-    
-    /*send&receive first packet*/
-    socklen = sizeof(remote_addr);
-    memset(databuff, EXAMPLE_PACK_BYTE_IS, EXAMPLE_DEFAULT_PKTSIZE);
-#if EXAMPLE_ESP_UDP_MODE_SERVER
-    ESP_LOGI(TAG, "first recvfrom:");
-    len = recvfrom(mysocket, databuff, EXAMPLE_DEFAULT_PKTSIZE, 0, (struct sockaddr *)&remote_addr, &socklen);
-#else
-    ESP_LOGI(TAG, "first sendto:");
-    len = sendto(mysocket, databuff, EXAMPLE_DEFAULT_PKTSIZE, 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-#endif
-    
-    if (len > 0) {
-	ESP_LOGI(TAG, "transfer data with %s:%u\n",
-		inet_ntoa(remote_addr.sin_addr), ntohs(remote_addr.sin_port));
-	xEventGroupSetBits(udp_event_group, UDP_CONNCETED_SUCCESS);
-    } else {
-    	show_socket_error_reason(mysocket);
-	close(mysocket);
-	vTaskDelete(NULL);
-    } /*if (len > 0)*/
-    
-#if EXAMPLE_ESP_UDP_PERF_TX
-    vTaskDelay(500 / portTICK_RATE_MS);
-#endif
-    ESP_LOGI(TAG, "start count!\n");
+    char databuff[EXAMPLE_DEFAULT_PKTSIZE + 1];
+
     while(1) {
-#if EXAMPLE_ESP_UDP_PERF_TX
-	len = sendto(mysocket, databuff, EXAMPLE_DEFAULT_PKTSIZE, 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-#else
+    memset(databuff, 0, sizeof(databuff));
 	len = recvfrom(mysocket, databuff, EXAMPLE_DEFAULT_PKTSIZE, 0, (struct sockaddr *)&remote_addr, &socklen);
-#endif
 	if (len > 0) {
+        printf("received data: %s\n", databuff);
 	    total_data += len;
 	    success_pack++;
 	} else {
