@@ -490,6 +490,9 @@ struct SSD1306_Device Dev_SPI;
 //struct SSD1306_Device Dev_I2C;
 struct SSD1306_Device Dev_Span;
 
+
+TaskHandle_t xTask = NULL;
+
 void ShiftTask( void* Param ) {
     static uint8_t In[ 8 ];
     static uint8_t Out[ 8 ];
@@ -499,14 +502,17 @@ void ShiftTask( void* Param ) {
 
     while ( true ) {
         Start = GetMillis( );
-            FBShiftLeft( &Dev_Span, In, Out );
-            memcpy( In, Out, sizeof( Out ) );
 
-            //Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
-            Virt_DeviceBlit( &Dev_Span, &Dev_SPI, MakeRect( 128, 255, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );   
 
-            //SSD1306_Update( &Dev_I2C );
-            SSD1306_Update( &Dev_SPI );
+        FBShiftLeft( &Dev_Span, In, Out );
+        memcpy( In, Out, sizeof( Out ) );
+
+        //Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
+        Virt_DeviceBlit( &Dev_Span, &Dev_SPI, MakeRect( 128, 255, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );   
+
+        //SSD1306_Update( &Dev_I2C );
+        SSD1306_Update( &Dev_SPI );
+
         End = GetMillis( );
 
         /* Sync to 30FPS */
@@ -518,6 +524,25 @@ void ShiftTask( void* Param ) {
         }
 
         vTaskDelay( pdMS_TO_TICKS( Delay ) );
+    }
+}
+
+void drawString(char *s) {
+    if ( Virt_DeviceInit( &Dev_Span, 256, 64 ) == 1 ) {
+        printf( "Span created!\n" );
+
+        SSD1306_Clear( &Dev_SPI, 0 );
+        SSD1306_SetHFlip( &Dev_SPI, true );
+        SSD1306_SetVFlip( &Dev_SPI, true );
+        SSD1306_SetFont( &Dev_Span, &Font_Liberation_Sans_15x16 );
+
+        FontDrawAnchoredString( &Dev_Span, s, TextAnchor_Center, true );
+
+        //Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
+        Virt_DeviceBlit( &Dev_Span, &Dev_SPI, MakeRect( 128, 255, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
+
+        //SSD1306_Update( &Dev_I2C );
+        SSD1306_Update( &Dev_SPI );
     }
 }
 
@@ -533,11 +558,6 @@ void app_main( void ) {
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
-
-    wifi_init_sta();
-    xTaskCreate(&udp_conn, "udp_conn", 4096, NULL, 5, NULL);
-
-    printf( "Ready...\n" );
 
     /*
     if ( ESP32_InitI2CMaster( SDAPin, SCLPin ) ) {
@@ -571,21 +591,15 @@ void app_main( void ) {
 
     //if ( Screen0 == true && Screen1 == true ) {
     if ( Screen1 == true ) {
-        if ( Virt_DeviceInit( &Dev_Span, 256, 64 ) == 1 ) {
-            printf( "Span created!\n" );
 
-            SSD1306_SetHFlip( &Dev_SPI, true );
-            SSD1306_SetVFlip( &Dev_SPI, true );
-            SSD1306_SetFont( &Dev_Span, &Font_Liberation_Sans_15x16 );
-            FontDrawAnchoredString( &Dev_Span, "Hello ESP32", TextAnchor_Center, true );
-
-            //Virt_DeviceBlit( &Dev_Span, &Dev_I2C, MakeRect( 0, 127, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
-            Virt_DeviceBlit( &Dev_Span, &Dev_SPI, MakeRect( 128, 255, 0, 63 ), MakeRect( 0, 127, 0, 63 ) );
-
-            //SSD1306_Update( &Dev_I2C );
-            SSD1306_Update( &Dev_SPI );
-
-            xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, NULL );
-        }
+            drawString("Connecting...");
+            xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, &xTask );
+        //}
     }
+
+    wifi_init_sta();
+    xTaskCreate(&udp_conn, "udp_conn", 4096, NULL, 5, NULL);
+
+    //drawString("Ready");
+    printf( "Ready...\n" );
 }
