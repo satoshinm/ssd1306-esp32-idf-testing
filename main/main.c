@@ -1,3 +1,44 @@
+/* HTTP GET Example using plain POSIX sockets
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
+#include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "esp_event_loop.h"
+#include "esp_log.h"
+#include "nvs_flash.h"
+
+#include "lwip/err.h"
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include "lwip/netdb.h"
+#include "lwip/dns.h"
+
+
+/* Constants that aren't configurable in menuconfig */
+#define WEB_SERVER "example.com"
+#define WEB_PORT 80
+#define WEB_URL "http://example.com/"
+
+static const char *REQUEST = "GET " WEB_URL " HTTP/1.0\r\n"
+    "Host: "WEB_SERVER"\r\n"
+    "User-Agent: esp-idf/1.0 esp32\r\n"
+    "\r\n";
+
+
+
+/* The event group allows multiple bits for each event,
+   but we only care about one event - are we connected
+   to the AP with an IP? */
+const int CONNECTED_BIT = BIT0;
+
+
 /* udp_perf Example
 
    This example code is in the Public Domain (or CC0 licensed, at your option.)
@@ -213,8 +254,8 @@ void wifi_init_sta()
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
-    ESP_LOGI(TAG, "connect to ap SSID:%s password:%s \n",
-	    EXAMPLE_DEFAULT_SSID,EXAMPLE_DEFAULT_PWD);
+    ESP_LOGI(TAG, "connect to ap SSID:%s \n",
+	    EXAMPLE_DEFAULT_SSID);
 }
 //wifi_init_softap
 void wifi_init_softap()
@@ -344,58 +385,6 @@ int check_connected_socket()
 void close_socket()
 {
     close(mysocket);
-}
-
-
-//this task establish a UDP connection and receive data from UDP
-static void udp_conn(void *pvParameters)
-{
-    ESP_LOGI(TAG, "task udp_conn start.");
-    /*wating for connecting to AP*/
-    xEventGroupWaitBits(udp_event_group, WIFI_CONNECTED_BIT,false, true, portMAX_DELAY);
-    ESP_LOGI(TAG, "sta has connected to ap.");
-    
-    /*create udp socket*/
-    int socket_ret;
-    
-    ESP_LOGI(TAG, "create udp server after 3s...");
-    vTaskDelay(3000 / portTICK_RATE_MS);
-    ESP_LOGI(TAG, "create_udp_server.");
-    socket_ret=create_udp_server();
-    if(socket_ret == ESP_FAIL) {
-	ESP_LOGI(TAG, "create udp socket error,stop.");
-	vTaskDelete(NULL);
-    }
-    
-    /*create a task to tx/rx data*/
-    TaskHandle_t tx_rx_task;
-    xTaskCreate(&send_recv_data, "send_recv_data", 4096, NULL, 4, &tx_rx_task);
-
-    /*waiting udp connected success*/
-    xEventGroupWaitBits(udp_event_group, UDP_CONNCETED_SUCCESS,false, true, portMAX_DELAY);
-    int bps;
-    while (1) {
-	total_data = 0;
-	vTaskDelay(3000 / portTICK_RATE_MS);//every 3s
-	bps = total_data / 3;
-
-	if (total_data <= 0) {
-	    int err_ret = check_connected_socket();
-	    if (err_ret == -1) {  //-1 reason: low level netif error
-		ESP_LOGW(TAG, "udp send & recv stop.\n");
-		break;
-	    }
-	}
-
-#if EXAMPLE_ESP_UDP_PERF_TX
-	ESP_LOGI(TAG, "udp send %d byte per sec! total pack: %d \n", bps, success_pack);
-#else
-	ESP_LOGI(TAG, "udp recv %d byte per sec! total pack: %d \n", bps, success_pack);
-#endif /*EXAMPLE_ESP_UDP_PERF_TX*/
-    }
-    close_socket();
-    vTaskDelete(tx_rx_task);
-    vTaskDelete(NULL);
 }
 
 
@@ -546,6 +535,96 @@ void drawString(char *s) {
     }
 }
 
+static void http_get_task(void *pvParameters)
+{
+    const struct addrinfo hints = {
+        .ai_family = AF_INET,
+        .ai_socktype = SOCK_STREAM,
+    };
+    struct addrinfo *res;
+    struct in_addr *addr;
+    int s, r;
+    char recv_buf[1024] = { 0 };
+    recv_buf[0] = 'X';
+
+    while(1) {
+        int err = getaddrinfo(WEB_SERVER, "80", &hints, &res);
+
+        if(err != 0 || res == NULL) {
+            ESP_LOGE(TAG, "DNS lookup failed for %s err=%d res=%p", WEB_SERVER, err, res);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            strcpy(recv_buf, "DNS lookup failed");
+            break;
+        }
+
+        /* Code to print the resolved IP.
+           Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
+        addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
+        ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", inet_ntoa(*addr));
+
+        s = socket(res->ai_family, res->ai_socktype, 0);
+        if(s < 0) {
+            ESP_LOGE(TAG, "... Failed to allocate socket.");
+            freeaddrinfo(res);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            strcpy(recv_buf, "Failed to allocate socket");
+            break;
+        }
+        ESP_LOGI(TAG, "... allocated socket");
+
+        if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
+            ESP_LOGE(TAG, "... socket connect failed errno=%d", errno);
+            close(s);
+            freeaddrinfo(res);
+            vTaskDelay(4000 / portTICK_PERIOD_MS);
+            strcpy(recv_buf, "socket connect failed");
+            break;
+        }
+
+        ESP_LOGI(TAG, "... connected");
+        freeaddrinfo(res);
+
+        if (write(s, REQUEST, strlen(REQUEST)) < 0) {
+            ESP_LOGE(TAG, "... socket send failed");
+            close(s);
+            vTaskDelay(4000 / portTICK_PERIOD_MS);
+            strcpy(recv_buf, "socket send failed");
+            break;
+        }
+        ESP_LOGI(TAG, "... socket send success");
+
+        struct timeval receiving_timeout;
+        receiving_timeout.tv_sec = 5;
+        receiving_timeout.tv_usec = 0;
+        if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout,
+                sizeof(receiving_timeout)) < 0) {
+            ESP_LOGE(TAG, "... failed to set socket receiving timeout");
+            close(s);
+            vTaskDelay(4000 / portTICK_PERIOD_MS);
+            strcpy(recv_buf, "failed to set socket receiving timeout");
+            break;
+        }
+        ESP_LOGI(TAG, "... set socket receiving timeout success");
+
+        /* Read HTTP response */
+        do {
+            bzero(recv_buf, sizeof(recv_buf));
+            r = read(s, recv_buf, sizeof(recv_buf)-1);
+            for(int i = 0; i < r; i++) {
+                putchar(recv_buf[i]);
+            }
+        } while(r > 0);
+
+        ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d\r\n", r, errno);
+        close(s);
+        break;
+    }
+
+    // Show the response from the server
+    drawString(recv_buf);
+    xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, &xTask );
+}
+
 void app_main( void ) {
     //bool Screen0 = false;
     bool Screen1 = false;
@@ -558,6 +637,9 @@ void app_main( void ) {
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
+    
+    wifi_init_sta();
+    printf("Ready\n");
 
     /*
     if ( ESP32_InitI2CMaster( SDAPin, SCLPin ) ) {
@@ -589,17 +671,10 @@ void app_main( void ) {
         }
     }
 
-    //if ( Screen0 == true && Screen1 == true ) {
-    if ( Screen1 == true ) {
-
-            drawString("Connecting...");
-            xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, &xTask );
-        //}
+    if (!Screen1) {
+        printf("Failed to initialize OLED screen!\n");
     }
 
-    wifi_init_sta();
-    xTaskCreate(&udp_conn, "udp_conn", 4096, NULL, 5, NULL);
+    xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
 
-    //drawString("Ready");
-    printf( "Ready...\n" );
 }
