@@ -22,14 +22,18 @@
 
 
 /* Constants that aren't configurable in menuconfig */
+/*
 #define WEB_SERVER "example.com"
 #define WEB_PORT 80
 #define WEB_URL "http://example.com/"
-
 static const char *REQUEST = "GET " WEB_URL " HTTP/1.0\r\n"
     "Host: "WEB_SERVER"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
     "\r\n";
+
+
+*/
+#include "config.h"
 
 
 
@@ -545,7 +549,7 @@ static void http_get_task(void *pvParameters)
     struct in_addr *addr;
     int s, r;
     char recv_buf[1024] = { 0 };
-    recv_buf[0] = 'X';
+    char *str = "???";
 
     while(1) {
         /* Wait for the callback to set the CONNECTED_BIT in the
@@ -555,12 +559,12 @@ static void http_get_task(void *pvParameters)
                             false, true, portMAX_DELAY);
         ESP_LOGI(TAG, "Connected to AP!");
 
-        int err = getaddrinfo(WEB_SERVER, "80", &hints, &res);
+        int err = getaddrinfo(WEB_SERVER, WEB_PORT, &hints, &res);
 
         if(err != 0 || res == NULL) {
             ESP_LOGE(TAG, "DNS lookup failed for %s err=%d res=%p", WEB_SERVER, err, res);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
-            strcpy(recv_buf, "DNS lookup failed");
+            str = "DNS lookup failed";
             break;
         }
 
@@ -574,7 +578,7 @@ static void http_get_task(void *pvParameters)
             ESP_LOGE(TAG, "... Failed to allocate socket.");
             freeaddrinfo(res);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
-            strcpy(recv_buf, "Failed to allocate socket");
+            str = "Failed to allocate socket";
             break;
         }
         ESP_LOGI(TAG, "... allocated socket");
@@ -584,7 +588,7 @@ static void http_get_task(void *pvParameters)
             close(s);
             freeaddrinfo(res);
             vTaskDelay(4000 / portTICK_PERIOD_MS);
-            strcpy(recv_buf, "socket connect failed");
+            str = "socket connect failed";
             break;
         }
 
@@ -595,30 +599,41 @@ static void http_get_task(void *pvParameters)
             ESP_LOGE(TAG, "... socket send failed");
             close(s);
             vTaskDelay(4000 / portTICK_PERIOD_MS);
-            strcpy(recv_buf, "socket send failed");
+            str = "socket send failed";
             break;
         }
         ESP_LOGI(TAG, "... socket send success");
 
         struct timeval receiving_timeout;
-        receiving_timeout.tv_sec = 5;
+        receiving_timeout.tv_sec = 1;
         receiving_timeout.tv_usec = 0;
         if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout,
                 sizeof(receiving_timeout)) < 0) {
             ESP_LOGE(TAG, "... failed to set socket receiving timeout");
             close(s);
             vTaskDelay(4000 / portTICK_PERIOD_MS);
-            strcpy(recv_buf, "failed to set socket receiving timeout");
+            str = "failed to set socket receiving timeout";
             break;
         }
         ESP_LOGI(TAG, "... set socket receiving timeout success");
 
+        str = malloc(256);
+        memset(str, 0, 256);
+        int j = 0;
+        bool found = false;
         /* Read HTTP response */
         do {
             bzero(recv_buf, sizeof(recv_buf));
             r = read(s, recv_buf, sizeof(recv_buf)-1);
             for(int i = 0; i < r; i++) {
                 putchar(recv_buf[i]);
+
+                if (recv_buf[i] == '~') {
+                    found = true;
+                } else if (found) {
+                    str[j] = recv_buf[i];
+                    if (j++ > 255) j = 0;
+                }
             }
         } while(r > 0);
 
@@ -628,7 +643,9 @@ static void http_get_task(void *pvParameters)
     }
 
     // Show the response from the server
-    drawString(recv_buf);
+    if (str[0] == 0) str = "No response";
+    printf("About to draw string=|%s|\n", str);
+    drawString(str);
     xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, &xTask );
 }
 
@@ -682,6 +699,8 @@ void app_main( void ) {
         printf("Failed to initialize OLED screen!\n");
     }
 
-    xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
+    SSD1306_Clear( &Dev_SPI, true );
 
+    //xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
+    http_get_task(NULL);
 }
