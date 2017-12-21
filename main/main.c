@@ -493,6 +493,8 @@ void ShiftTask( void* Param ) {
     int64_t End = 0;
     int Delay = 0;
 
+    int64_t VeryStart = GetMillis( );
+
     while ( true ) {
         Start = GetMillis( );
 
@@ -517,6 +519,12 @@ void ShiftTask( void* Param ) {
         }
 
         vTaskDelay( pdMS_TO_TICKS( Delay ) );
+
+        uint64_t TotalElapsed = GetMillis() - VeryStart;
+        if (TotalElapsed > 30000) {
+            printf("Time elapsed, restarting!\n");
+            esp_restart();
+        }
     }
 }
 
