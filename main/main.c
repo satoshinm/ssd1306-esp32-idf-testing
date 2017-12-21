@@ -548,6 +548,13 @@ static void http_get_task(void *pvParameters)
     recv_buf[0] = 'X';
 
     while(1) {
+        /* Wait for the callback to set the CONNECTED_BIT in the
+           event group.
+        */
+        xEventGroupWaitBits(udp_event_group, CONNECTED_BIT,
+                            false, true, portMAX_DELAY);
+        ESP_LOGI(TAG, "Connected to AP!");
+
         int err = getaddrinfo(WEB_SERVER, "80", &hints, &res);
 
         if(err != 0 || res == NULL) {
