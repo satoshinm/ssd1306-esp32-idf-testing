@@ -653,6 +653,7 @@ static void http_get_task(void *pvParameters)
     if (str[0] == 0) str = "No response";
     printf("About to draw string=|%s|\n", str);
     drawString(str);
+    return;
     xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, &xTask );
 }
 
