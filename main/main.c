@@ -679,6 +679,11 @@ static void gpio_task_example(void* arg)
             }
 
             ++triggered_count;
+
+            if (triggered_count > 100) {
+                printf("Triggered elapsed, restarting!\n");
+                esp_restart();
+            }
         }
     }
 }
