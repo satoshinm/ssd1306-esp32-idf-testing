@@ -655,6 +655,7 @@ static void http_get_task(void *pvParameters)
     printf("About to draw string=|%s|\n", str);
     drawString(str);
     memcpy(last_str_drawn, str, strlen(str));
+    printf("Saving last_str_drawn=|%s|\n", last_str_drawn);
 
     return;
     xTaskCreate( ShiftTask, "ShiftTask", 4096, NULL, 3, &xTask );
@@ -676,7 +677,7 @@ static void gpio_task_example(void* arg)
             printf("GPIO[%d] intr, val: %d (triggered count %d)\n", io_num, gpio_get_level(io_num), triggered_count);
 
             if (gpio_get_level(io_num)) {
-                drawString("   Motion detected");
+                drawString("Welcome Welcome Welcome");
             } else {
                 drawString(last_str_drawn);
             }
