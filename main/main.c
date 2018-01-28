@@ -663,18 +663,22 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
+static int triggered_count = 0;
+
 static void gpio_task_example(void* arg)
 {
     uint32_t io_num;
     for(;;) {
         if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+            printf("GPIO[%d] intr, val: %d (triggered count %d)\n", io_num, gpio_get_level(io_num), triggered_count);
 
             if (gpio_get_level(io_num)) {
                 drawString("   on");
             } else {
                 drawString("   off");
             }
+
+            ++triggered_count;
         }
     }
 }
