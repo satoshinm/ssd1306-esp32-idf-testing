@@ -523,11 +523,6 @@ void ShiftTask( void* Param ) {
             Delay= 3;
         }
 
-        uint32_t io_num;
-        if(xQueueReceive(gpio_evt_queue, &io_num, 0)) {
-            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
-        }
-
         vTaskDelay( pdMS_TO_TICKS( Delay ) );
     }
 }
@@ -767,4 +762,11 @@ void app_main( void ) {
 
     //xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
     http_get_task(NULL);
+
+    for(;;) {
+        uint32_t io_num;
+        if(xQueueReceive(gpio_evt_queue, &io_num, 0)) {
+            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+        }
+    }
 }
